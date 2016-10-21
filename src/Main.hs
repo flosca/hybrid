@@ -40,43 +40,51 @@ ruleExample = "rule_of_withdrawal (ac: ACCOUNT; n, initial_amount: INTEGER;): \
 symbol :: Parser Char
 symbol = oneOf "-_!?"
 
-around :: Parser a -> Parser String
-around p = many space >> p >> many space
+(<<) :: Parser a -> Parser b -> Parser a
+p << q = do
+  x <- p
+  q
+  return x
 
+around :: Parser a -> Parser a
+around p = many space >> p << many space
+
+semiColon :: Parser Char
 semiColon = char ';'
+
+colon :: Parser Char
 colon = char ':'
 
-semiOrParenR :: Parser Char
-semiOrParenR = oneOf ";)"
+comma :: Parser Char
+comma = char ','
 
-
-parseString :: Parser String
-parseString = do
-  first <- letter <|> symbol
+varString :: Parser String
+varString = do
+  first <- letter <|> symbol -- first variable's symbol should not be a digit
   rest <- many (letter <|> digit <|> symbol)
   let s = first:rest
   return s
 
-parseVariable :: Parser Variable -- TODO parse this: "a,b:TYPE"
-parseVariable = do
-  varName <- parseString
+variable :: Parser Variables
+variable = do
+  varNames <- sepBy (around varString) (comma)
   around colon
-  varType <- parseString
-  return $ Variable (varName) (varType)
+  varType <- varString
+  return $ [Variable varName varType | varName <- varNames]
 
-parseVariables :: Parser Variables
-parseVariables = do
+variables :: Parser Variables
+variables = do
   char '('
-  vars <- sepBy parseVariable (around semiColon)
+  vars <- (sepBy variable (around semiColon))
   char ')'
-  return vars
+  return $ concat vars
 
 --parseRule :: Parser Rule
 --parseRule =
 
 
 readExpr :: String -> String
-readExpr input = case parse parseVariables "hybrid" input of
+readExpr input = case parse variables "hybrid" input of
     Left err -> "No match: " ++ show err
     Right val -> show val
 
