@@ -40,8 +40,8 @@ ruleExample = "rule_of_withdrawal (ac: ACCOUNT; n, initial_amount: INTEGER;): \
 symbol :: Parser Char
 symbol = oneOf "-_!?"
 
-spaces :: Parser ()
-spaces = skipMany1 space
+around :: Parser a -> Parser String
+around p = many space >> p >> many space
 
 semiColon = char ';'
 colon = char ':'
@@ -59,15 +59,16 @@ parseString = do
 
 parseVariable :: Parser Variable -- TODO parse this: "a,b:TYPE"
 parseVariable = do
-  varName <- endBy parseString colon
-  varType <- spaces >> (endBy parseString semiColon)
-  return $ Variable (concat varName) (concat varType)
+  varName <- parseString
+  around colon
+  varType <- parseString
+  return $ Variable (varName) (varType)
 
 parseVariables :: Parser Variables
 parseVariables = do
-  void $ char '('
-  vars <- sepBy parseVariable spaces
-  void $ char ')'
+  char '('
+  vars <- sepBy parseVariable (around semiColon)
+  char ')'
   return vars
 
 --parseRule :: Parser Rule
