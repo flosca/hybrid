@@ -116,6 +116,41 @@ eCall = do
 expression :: Parser Expr
 expression = try eCall <|> eVar <|> eBinary
 
+assignment :: Parser Statement
+assignment = do
+  var <- varString
+  around $ char '='
+  expr <- expression
+  return $ Assign var expr
+
+order :: Parser String
+order =  string "<"
+        <|> string "<="
+        <|> string "=="
+        <|> string ">="
+        <|> string ">"
+
+stringToOrder :: String -> MyOrd
+stringToOrder s = case s of
+                   "<"  -> Less
+                   "<=" -> LessEq
+                   "==" -> Eq
+                   ">=" -> GreatEq
+                   ">"  -> Great
+                   otherwise -> error "Mistype in an order symbols"
+
+
+comparator :: Parser Statement
+comparator = do
+  var1 <- exprString
+  many space
+  ord  <- order
+  many space
+  var2 <- exprString
+  return $ Compare var1 (stringToOrder ord) var2
+
+statement :: Parser Statement
+statement = try assignment <|> comparator -- <|> call
 
 --rule :: Parser Rule
 --rule = do
