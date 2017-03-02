@@ -16,7 +16,7 @@ data Expr = EVar String | EBinary String String String | ECall String [String]
             deriving (Show)
 
 data Statement = Assign String Expr
-               | Compare String (Maybe MyOrd) String
+               | Compare String MyOrd String
                | Call String [String]
                  deriving (Show)
 
@@ -28,10 +28,6 @@ type Postconds = [Statement]
 
 data Rule = Rule RuleName Variables Preconds Body Postconds
             deriving (Show)
-
-ruleExample :: String
-ruleExample = "rule_of_withdrawal (ac: ACCOUNT; n, initial_amount: INTEGER): \
-              \ {ac.amount = initial_amount; ac.amount <= n} ac.withdraw (n) {ac.amount = initial_amount - n}"
 
 {- Defining parsers -}
 
@@ -141,15 +137,33 @@ comparator = do
   many space
   var2 <- exprString
   return $ Compare var1 (stringToOrder ord) var2
+--
+-- call :: Parser Statement
+-- call = do
+
 
 statement :: Parser Statement
-statement = try assignment <|> comparator -- <|> call
+statement = buildExpressionParser statementGrammar term
 
---rule :: Parser Rule
---rule = do
+
+orderTable :: OperatorTable Char () Statement
+orderTable = [[Infix (binaryInfixOp "==" Eq) AssocLeft,
+              --  Infix (binaryInfixOp "!=" NotEquals) AssocLeft,
+               Infix (binaryInfixOp ">" Great) AssocLeft,
+               Infix (binaryInfixOp ">=" GreatEq) AssocLeft,
+               Infix (binaryInfixOp "<" Less) AssocLeft,
+               Infix (binaryInfixOp "<=" LessEq) AssocLeft]]
+
+binaryInfixOp :: String -> MyOrd -> Parser Statement
+binaryInfixOp name op = do
+  string name
+  skip
+  return $ \l r -> Compare l op r
+
+infixExpr = buildExpressionParser orderTable 
 
 
 readExpr :: String -> String
-readExpr input = case parse variables "hybrid" input of
+readExpr input = case parse statement "hybrid" input of
     Left err -> "No match: " ++ show err
     Right val -> show val
